@@ -88,8 +88,14 @@ sudo apt-get install mkvtoolnix
 
 ## Azure/Fish TTS → 剪映草稿
 
-仓库同时提供 `azure_tts_to_jianying.py` 入口。它会自动定位相邻的
-`NarratoAI-local`，并使用该项目的 `.venv`、配置、数据模型和剪映草稿构建器运行原始实现：
+仓库同时提供 `azure_tts_to_jianying.py` 组合入口。默认执行顺序是：
+
+1. 询问 MKV 路径；
+2. 检测镜头、无重编码拆分并提取简体中文字幕；
+3. 进入 Azure/Fish TTS → 剪映草稿交互。
+
+它会自动定位相邻的 `NarratoAI-local`，并使用该项目的 `.venv`、配置、
+数据模型和剪映草稿构建器运行 TTS 实现：
 
 ```bash
 ./azure_tts_to_jianying.py
@@ -99,8 +105,24 @@ sudo apt-get install mkvtoolnix
 
 ```bash
 ./azure_tts_to_jianying.py \
+  --mkv '/path/to/video.mkv' \
   --input '/path/to/解说词.txt' \
   --draft-dir '/path/to/JianyingPro Drafts'
+```
+
+指定镜头输出目录或覆盖已有镜头结果：
+
+```bash
+./azure_tts_to_jianying.py \
+  --mkv '/path/to/video.mkv' \
+  --scene-output '/path/to/scenes' \
+  --force-scenes
+```
+
+如果只想运行原来的 TTS → 剪映功能：
+
+```bash
+./azure_tts_to_jianying.py --skip-scene-split
 ```
 
 查看实际使用的项目、Python 和脚本位置：
