@@ -1,4 +1,4 @@
-# MKV Scene Splitter
+# MKV Scene Splitter 与 TTS 剪映工具
 
 使用 PySceneDetect 检测镜头，通过 MKVToolNix 直接复制码流进行拆分，并从原始 MKV 中导出简体中文字幕。
 
@@ -85,3 +85,45 @@ sudo apt-get install mkvtoolnix
 - 自动排除标为 `繁体`、`繁中`、`zh-Hant`、`zh-TW`、`CHT` 的轨道
 
 支持导出 SRT、ASS/SSA 和 WebVTT。若多个轨道仍无法区分，会要求使用 `--subtitle-track`，避免误选。
+
+## Azure/Fish TTS → 剪映草稿
+
+仓库同时提供 `azure_tts_to_jianying.py` 入口。它会自动定位相邻的
+`NarratoAI-local`，并使用该项目的 `.venv`、配置、数据模型和剪映草稿构建器运行原始实现：
+
+```bash
+./azure_tts_to_jianying.py
+```
+
+原脚本的所有参数都会原样转发，例如：
+
+```bash
+./azure_tts_to_jianying.py \
+  --input '/path/to/解说词.txt' \
+  --draft-dir '/path/to/JianyingPro Drafts'
+```
+
+查看实际使用的项目、Python 和脚本位置：
+
+```bash
+./azure_tts_to_jianying.py --wrapper-info
+```
+
+如果 NarratoAI 不在当前仓库旁边，可显式指定：
+
+```bash
+./azure_tts_to_jianying.py \
+  --narrato-root '/path/to/NarratoAI-local' \
+  --input '/path/to/解说词.txt'
+```
+
+也可以设置环境变量：
+
+```bash
+export NARRATOAI_ROOT='/path/to/NarratoAI-local'
+./azure_tts_to_jianying.py
+```
+
+这个入口没有复制 NarratoAI 的内部模块。TTS 脚本依赖
+`app.models.schema` 和 `app.services.jianying_draft_builder`，因此始终调用指定
+NarratoAI 工作树中的当前版本，避免两份草稿生成逻辑失去同步。
