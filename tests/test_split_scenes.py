@@ -3,6 +3,7 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -64,6 +65,33 @@ class ShotFileTests(unittest.TestCase):
             expected.touch()
             (shots / "G Episode-01-Shot-002.mkv").touch()
             self.assertEqual(MODULE.shot_files(shots, "[Group] Episode-01"), [expected])
+
+
+class InputResolutionTests(unittest.TestCase):
+    def test_resolves_direct_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "video.mkv"
+            source.touch()
+            self.assertEqual(MODULE.resolve_input_file(str(source)), source.resolve())
+
+    def test_finds_filename_recursively(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "videos" / "nested" / "episode.mkv"
+            source.parent.mkdir(parents=True)
+            source.touch()
+            with mock.patch.object(
+                MODULE, "find_files_by_name", return_value=[source.resolve()]
+            ) as finder:
+                resolved = MODULE.resolve_input_file("episode.mkv", interactive=False)
+            self.assertEqual(resolved, source.resolve())
+            finder.assert_called_once_with("episode.mkv")
+
+    def test_noninteractive_duplicate_requires_full_path(self):
+        matches = [Path("/a/video.mkv"), Path("/b/video.mkv")]
+        with mock.patch.object(MODULE, "find_files_by_name", return_value=matches):
+            with self.assertRaises(RuntimeError):
+                MODULE.resolve_input_file("video.mkv", interactive=False)
 
 
 if __name__ == "__main__":

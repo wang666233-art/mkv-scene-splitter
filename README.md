@@ -32,6 +32,15 @@ sudo apt-get install mkvtoolnix
 ./split_scenes.py
 ```
 
+如果文件位于当前用户目录中，也可以只输入文件名：
+
+```bash
+./split_scenes.py 'video.mkv'
+```
+
+脚本会从当前目录和用户主目录递归查找。只有一个匹配时自动使用；存在多个
+同名文件时会列出完整路径供选择。
+
 默认在源视频旁创建 `<原文件名>_scenes`：
 
 ```text
@@ -93,6 +102,9 @@ sudo apt-get install mkvtoolnix
 1. 询问 MKV 路径；
 2. 检测镜头、无重编码拆分并提取简体中文字幕；
 3. 进入 Azure/Fish TTS → 剪映草稿交互。
+
+第一个提示可以输入完整路径，也可以只输入 MKV 文件名；仅输入文件名时会
+自动在当前目录和用户主目录中查找。
 
 它会自动定位相邻的 `NarratoAI-local`，并使用该项目的 `.venv`、配置、
 数据模型和剪映草稿构建器运行 TTS 实现：

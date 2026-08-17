@@ -14,6 +14,17 @@ import sys
 from typing import Any, Sequence
 
 
+SEARCH_PRUNE_DIRECTORIES = {
+    ".cache",
+    ".git",
+    ".hg",
+    ".svn",
+    ".venv",
+    "__pycache__",
+    "node_modules",
+}
+
+
 def executable(name: str, override: str | None = None) -> str:
     """Find a required executable, including the user's common PySceneDetect venv."""
     candidates = [override, shutil.which(name)]
@@ -25,6 +36,65 @@ def executable(name: str, override: str | None = None) -> str:
     raise RuntimeError(
         f"找不到 {name}。请安装并加入 PATH，或使用 --{name} 指定可执行文件。"
     )
+
+
+def find_files_by_name(filename: str, roots: Sequence[Path] | None = None) -> list[Path]:
+    """Find an exact filename below local user directories without following symlinks."""
+    search_roots = list(roots or (Path.cwd(), Path.home()))
+    matches: set[Path] = set()
+    visited_roots: list[Path] = []
+    for raw_root in search_roots:
+        root = raw_root.expanduser().resolve()
+        if not root.is_dir() or any(root == seen or seen in root.parents for seen in visited_roots):
+            continue
+        # If a broader root is encountered after a nested one, searching the
+        # broader root is still necessary, but avoid reporting duplicates.
+        visited_roots.append(root)
+        for current, directories, files in os.walk(root, followlinks=False):
+            directories[:] = [
+                name for name in directories if name not in SEARCH_PRUNE_DIRECTORIES
+            ]
+            if filename in files:
+                matches.add((Path(current) / filename).resolve())
+    return sorted(matches, key=lambda path: str(path))
+
+
+def resolve_input_file(raw_value: str, *, interactive: bool | None = None) -> Path:
+    """Resolve a path, searching the local home tree when only a filename is given."""
+    normalized = raw_value.strip().strip('"').strip("'")
+    if not normalized:
+        raise RuntimeError("MKV 文件路径不能为空")
+
+    direct = Path(normalized).expanduser()
+    if direct.is_file():
+        return direct.resolve()
+    if direct.name != normalized:
+        raise RuntimeError(f"输入文件不存在：{direct.resolve()}")
+
+    print(f"未在当前目录找到 {normalized}，正在本机用户目录中查找…", flush=True)
+    matches = find_files_by_name(normalized)
+    if not matches:
+        raise RuntimeError(f"未找到文件：{normalized}")
+    if len(matches) == 1:
+        print(f"已找到：{matches[0]}", flush=True)
+        return matches[0]
+
+    use_interactive = sys.stdin.isatty() if interactive is None else interactive
+    if not use_interactive:
+        candidates = "\n".join(f"  - {path}" for path in matches)
+        raise RuntimeError(f"找到多个同名文件，请传入完整路径：\n{candidates}")
+    print("找到多个同名文件：")
+    for index, path in enumerate(matches, start=1):
+        print(f"  {index}. {path}")
+    while True:
+        selection = input(f"请选择文件 [1-{len(matches)}]：").strip()
+        try:
+            selected_index = int(selection)
+        except ValueError:
+            selected_index = 0
+        if 1 <= selected_index <= len(matches):
+            return matches[selected_index - 1]
+        print("输入无效，请输入候选项编号。")
 
 
 def run(command: Sequence[str], *, capture: bool = False) -> subprocess.CompletedProcess[str]:
@@ -176,10 +246,7 @@ def main() -> int:
     raw_input = args.input
     if not raw_input:
         raw_input = input("请输入 MKV 文件路径：").strip()
-    raw_input = raw_input.strip().strip('"').strip("'")
-    source = Path(raw_input).expanduser().resolve()
-    if not source.is_file():
-        raise RuntimeError(f"输入文件不存在：{source}")
+    source = resolve_input_file(raw_input)
     if source.suffix.lower() != ".mkv":
         raise RuntimeError(f"当前脚本只接受 MKV 文件：{source}")
 
