@@ -1,0 +1,89 @@
+# mkv-scene-splitter 个人配置备份（已脱敏，不含任何密钥）
+# 实际生效的配置是 config.toml（已被 .gitignore 忽略），本文件仅记录调好的非密钥参数
+
+[scene_split]
+# 直接比较相邻帧，减少连续镜头被 adaptive 滚动平均合并
+detector = "content"
+# 自适应镜头检测阈值（数值越低检测到的镜头越多，默认 2.0）
+threshold = 12.0
+# 最小内容变化值（默认 8.0）
+min_content_val = 8.0
+# 最短镜头长度（默认 0.3s）
+min_scene_len = "0.3s"
+# auto 优先使用 NVIDIA NVENC；没有 NVENC 时回退到 CPU libx264
+video_encoder = "auto"
+# 默认镜头输出目录（留空则默认为源视频所在目录下的 <文件名>_scenes）
+# output_dir = ""
+# 手动指定字幕轨道 ID（默认自动识别简体中文文本轨）
+# subtitle_track = 2
+
+[jianying]
+# 剪映草稿根目录（JianyingPro Drafts 的完整路径）
+# 例如 WSL 中访问 Windows 剪映草稿：/mnt/c/Users/<用户名>/Downloads/JianyingPro Drafts
+draft_dir = "/mnt/c/Users/Administrator/Downloads/caogao"
+
+# 草稿画布尺寸（横屏 1920x1080，竖屏 1080x1920）
+width = 1920
+height = 1080
+
+# 字幕与字体样式
+font_name = "SourceHanSansCN-Regular.otf"
+font_size = 60
+text_fore_color = "#FFFFFF"
+stroke_color = "#000000"
+stroke_width = 1.5
+# 字幕位置可选: "bottom", "top", "center", "custom"
+subtitle_position = "bottom"
+custom_position = 70.0
+
+[tts]
+# 默认 TTS 引擎: "azure_speech" 或 "fish_tts"
+engine = "fish_tts"
+
+# 语速倍率（默认 1.0）
+rate = 1.2
+# 单次 TTS 请求最大字符数（默认 2500）
+chunk_size = 2500
+# 每条字幕最大字符数（默认 30）
+subtitle_max_chars = 30
+# 相邻音频片段间隔（秒，默认 0.1）
+segment_gap_seconds = 0.05
+# 静音检测阈值 dB（默认 -45.0，绝对值越小裁剪越强）
+silence_threshold_db = -80.0
+# 句内停顿裁剪触发长度（秒，默认 0.08）
+internal_silence_seconds = 0.12
+
+[azure]
+# Azure Speech 服务 Key 与 Region
+speech_key = ""
+speech_region = "eastasia"
+# Azure 音色 ShortName（如 zh-CN-XiaoyiNeural, zh-CN-YunxiNeural, zh-CN-YunjianNeural 等）
+voice = "zh-CN-XiaoyiNeural"
+# 音调变化（Hz，默认 0）
+pitch = 0
+# 合成音量（0-100，默认 80）
+volume = 80
+# 说话风格（如 cheerful, empathetic 等，可选）
+style = ""
+# 说话角色（可选）
+role = ""
+# 风格强度（0.01-2.0，默认 1.0）
+style_degree = 1.0
+
+[fish_tts]
+# 在这里填入你自己的 Fish Audio API Key
+api_key = ""
+model = "s2.1-pro-free"
+# 音色参考 ID，填入你自己的音色 ID
+reference_id = ""
+api_url = "https://api.fish.audio/v1/tts/stream/with-timestamp"
+temperature = 0.7
+top_p = 0.7
+chunk_length = 300
+latency = "normal"
+timeout = 180
+
+[proxy]
+enabled = false
+http = ""
+https = ""

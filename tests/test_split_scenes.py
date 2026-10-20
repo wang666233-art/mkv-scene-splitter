@@ -56,6 +56,96 @@ class CsvTests(unittest.TestCase):
                 MODULE.read_cut_times(path), ["00:00:01.000", "00:00:02.500"]
             )
 
+    def test_parses_scene_timecode(self):
+        self.assertAlmostEqual(MODULE.parse_timecode("01:02:03.500"), 3723.5)
+
+
+class ReencodeTests(unittest.TestCase):
+    def test_encodes_once_and_forces_all_scene_boundaries(self):
+        with (
+            mock.patch.object(MODULE, "run") as runner,
+            mock.patch.object(MODULE, "shot_files", return_value=[]),
+        ):
+            MODULE.reencode_scenes(
+                "ffmpeg",
+                Path("/tmp/source.mkv"),
+                Path("/tmp/shots"),
+                ["00:00:01.000", "00:00:02.500"],
+            )
+
+        runner.assert_called_once()
+        command = runner.call_args.args[0]
+        self.assertIn("-force_key_frames", command)
+        self.assertNotIn("-forced-idr", command)
+        self.assertEqual(command[command.index("-segment_times") + 1], "1.000,2.500")
+        self.assertNotIn("0:s?", command)
+        self.assertNotIn("-c:s", command)
+        self.assertEqual(command[-1], "/tmp/shots/source-Shot-%03d.mkv")
+
+    def test_nvenc_requests_forced_idr(self):
+        with (
+            mock.patch.object(MODULE, "run") as runner,
+            mock.patch.object(MODULE, "shot_files", return_value=[]),
+        ):
+            MODULE.reencode_scenes(
+                "ffmpeg", Path("/tmp/source.mkv"), Path("/tmp/shots"),
+                ["00:00:01.000"], "h264_nvenc",
+            )
+        command = runner.call_args.args[0]
+        self.assertEqual(command[command.index("-forced-idr") + 1], "1")
+
+
+class VideoEncoderChoiceTests(unittest.TestCase):
+    def test_auto_uses_cpu_when_nvenc_is_listed_but_unusable(self):
+        with (
+            mock.patch.object(MODULE, "ffmpeg_encoders", return_value={"h264_nvenc", "libx264"}),
+            mock.patch.object(MODULE, "nvenc_usable", return_value=False),
+        ):
+            self.assertEqual(MODULE.choose_video_encoder("ffmpeg", "auto"), "libx264")
+
+    def test_auto_keeps_nvenc_when_a_device_is_really_available(self):
+        with (
+            mock.patch.object(MODULE, "ffmpeg_encoders", return_value={"h264_nvenc", "libx264"}),
+            mock.patch.object(MODULE, "nvenc_usable", return_value=True),
+        ):
+            self.assertEqual(MODULE.choose_video_encoder("ffmpeg", "auto"), "h264_nvenc")
+
+    def test_explicit_nvenc_request_is_not_downgraded(self):
+        with (
+            mock.patch.object(MODULE, "ffmpeg_encoders", return_value={"h264_nvenc", "libx264"}),
+            mock.patch.object(MODULE, "nvenc_usable", return_value=False),
+        ):
+            self.assertEqual(MODULE.choose_video_encoder("ffmpeg", "h264_nvenc"), "h264_nvenc")
+
+    def test_missing_encoder_still_raises(self):
+        with mock.patch.object(MODULE, "ffmpeg_encoders", return_value={"libx264"}):
+            with self.assertRaises(RuntimeError):
+                MODULE.choose_video_encoder("ffmpeg", "h264_nvenc")
+
+
+class FfmpegStdinTests(unittest.TestCase):
+    def test_segmenting_never_waits_on_stdin(self):
+        with (
+            mock.patch.object(MODULE, "run") as runner,
+            mock.patch.object(MODULE, "shot_files", return_value=[]),
+        ):
+            MODULE.reencode_scenes(
+                "ffmpeg", Path("/tmp/source.mkv"), Path("/tmp/shots"), ["00:00:01.000"]
+            )
+        self.assertIn("-nostdin", runner.call_args.args[0])
+
+
+class SubtitleConversionTests(unittest.TestCase):
+    def test_removes_ass_and_html_markup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "captions.srt"
+            path.write_text(
+                "1\n00:00:01,000 --> 00:00:02,000\n{}<b>这个世上不只有诅咒</b>\n",
+                encoding="utf-8",
+            )
+            MODULE.clean_srt_markup(path)
+            self.assertEqual(path.read_text(encoding="utf-8").splitlines()[-1], "这个世上不只有诅咒")
+
 
 class ShotFileTests(unittest.TestCase):
     def test_filename_with_square_brackets_is_literal(self):

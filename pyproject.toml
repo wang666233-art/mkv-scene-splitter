@@ -1,0 +1,26 @@
+[project]
+name = "mkv-scene-splitter"
+version = "0.1.0"
+description = "PySceneDetect 检测镜头，通过 MKVToolNix 无损拆分 MKV，并导出简体中文字幕"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "scenedetect>=0.6.5,<0.7.0",
+    "opencv-python>=4.10.0",
+    "requests[socks]>=2.34.2",
+    "azure-cognitiveservices-speech>=1.51.2",
+    "tomli>=2.4.1 ; python_full_version < '3.11'",
+]
+
+[project.scripts]
+mkv-scene-splitter = "split_scenes:main"
+azure-tts-to-jianying = "azure_tts_to_jianying:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
